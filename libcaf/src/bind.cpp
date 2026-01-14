@@ -66,9 +66,10 @@ PYBIND11_MODULE(_libcaf, m) {
         .def_readonly("parent", &Commit::parent);
     
     py::class_<Like>(m,"Like")
-    .def(py::init<const string &, const string&, time_t>())
+        .def(py::init<const string &, const string&, time_t, const std::optional<std::string>&>())
         .def_readonly("commit_hash", &Like::commit_hash)
         .def_readonly("user", &Like::user)
-        .def_readonly("timestamp", &Like::timestamp);
+        .def_readonly("timestamp", &Like::timestamp)
+        .def_readonly("prev_like", &Like::prev_like);
 
 }
