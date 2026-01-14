@@ -21,6 +21,6 @@ std::string hash_object(const Commit& commit) {
 }
 
 std::string hash_object(const Like& like) {
-    return hash_string(like.commit_hash +like.user +std::to_string(like.timestamp)
+    return hash_string(like.commit_hash + like.user + std::to_string(like.timestamp) + like.prev_like.value_or("")
     );
 }
