@@ -561,26 +561,82 @@ class Repository:
         return self.repo_path() / HEAD_FILE
     
 
+
+    def likes_dir(self) -> Path:
+        """Get the path to the likes refs directory.
+        
+        :return: The path to the refs directory."""
+        
+        return self.refs_dir() / "likes"
+    
+    def likes_by_user_dir(self) -> Path:
+        """Get the path to the likes-by-user refs directory.
+        :return: The path to the refs by user directory."""
+
+        return self.likes_dir() / "by-user"
+
+    def likes_by_commit_dir(self) -> Path:
+        """Get the path to the likes-by-commit refs directory.
+        :return: The path to the refs by user directory."""
+        
+        return self.likes_dir() / "by-commit"
+    
+    def user_likes_ref(self, user: str) -> Path:
+        """Get the ref path for a specific user's likes.
+        :return: The path to the refs by specific user directory."""
+        
+        return self.likes_by_user_dir() / user
+
+    def commit_likes_ref(self, commit_hash: str) -> Path:
+        """Get the ref path for likes of a specific commit."""
+        return self.likes_by_commit_dir() / commit_hash
+
+
     @requires_repo
     def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
-        if user not in self._users:
-            raise RepositoryError(f"User '{user}' is not registered")
+        if not user:
+            raise ValueError("User is required")
 
+        # Resolve commit reference
         resolved = self.resolve_ref(commit_ref)
         if resolved is None:
             raise RepositoryError("Invalid commit reference")
 
         commit_hash = str(resolved)
 
-        if commit_hash in self._users[user]:
-            raise RepositoryError(
-                f"User '{user}' already liked commit '{commit_hash}'"
-            )
+        # Ensure likes refs directories exist
+        self.likes_by_user_dir().mkdir(parents=True, exist_ok=True)
+        self.likes_by_commit_dir().mkdir(parents=True, exist_ok=True)
 
-        like = Like(commit_hash, user, int(datetime.now().timestamp()))
-        like_hash = self.save_like(like)
+        # Ensure user exists (logical creation via refs)
+        self.add_user(user)
 
-        self._users[user].add(commit_hash)
+        # Get previous user like 
+        user_ref_path = self.user_likes_ref(user)
+        commit_ref_path = self.commit_likes_ref(commit_hash)
+        prev_like_ref = read_ref(user_ref_path) if user_ref_path.exists() else None
+
+        # Prevent duplicate like by walking the user's like chain
+        current = self.resolve_ref(prev_like_ref) if prev_like_ref else None
+        while current:
+            like_obj = load_like(self.objects_dir(), current)
+
+            if like_obj.commit_hash == commit_hash:
+                raise RepositoryError(f"User '{user}' already liked commit '{commit_hash}'")
+
+            current = HashRef(like_obj.prev_like) if like_obj.prev_like else None
+
+        timestamp = int(datetime.now().timestamp())
+
+        like = Like(commit_hash, user, timestamp, prev_like_ref)
+        
+        save_like(self.objects_dir(), like)
+        
+        like_hash = HashRef(hash_object(like))
+        
+        # Update refs
+        write_ref(user_ref_path, like_hash)
+        write_ref(commit_ref_path, like_hash)
 
         return like_hash
 
