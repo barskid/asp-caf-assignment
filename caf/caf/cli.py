@@ -152,6 +152,23 @@ def cli() -> None:
             },
             'help': '📊 Display differences between two commits',
         },
+
+        'like': {
+            'func': cli_commands.like,
+            'args': {
+                **_repo_args,
+                'commit_ref': {
+                    'type': str,
+                    'help': '🔗 Commit reference to like (hash or HEAD)',
+                },
+                'user': {
+                    'type': str,
+                    'help': '👤 User who likes the commit',
+                },
+            },
+            'help': '❤️ Like a commit',
+        },
+
     }
 
     # Register commands

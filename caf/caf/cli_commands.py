@@ -277,5 +277,37 @@ def _print_diffs(diff_stack: MutableSequence[tuple[Sequence[Diff], int]]) -> Non
             if diff.children:
                 diff_stack.append((diff.children, indent + 3))
 
+def like(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    commit_ref = kwargs.get('commit_ref')
+    user = kwargs.get('user')
+
+    if not commit_ref:
+        _print_error('Commit reference is required.')
+        return -1
+
+    if not user:
+        _print_error('User name is required.')
+        return -1
+
+    try:
+        like_ref = repo.create_like(commit_ref, user)
+
+        _print_success(
+            f'Like created successfully:\n'
+            f'Like hash: {like_ref}\n'
+            f'Commit: {commit_ref}\n'
+            f'User: {user}\n'
+        )
+        return 0
+
+    except RepositoryNotFoundError:
+        _print_error(f'No repository found at {repo.repo_path()}')
+        return -1
+    except RepositoryError as e:
+        _print_error(f'Repository error: {e}')
+        return -1
+
+
 
 
