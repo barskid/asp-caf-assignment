@@ -690,9 +690,20 @@ class Repository:
     def add_user(self, user: str) -> None:
         if not user:
             raise ValueError("User name is required")
-        if user in self._users:
-            raise RepositoryError(f"User '{user}' already exists")
-        self._users[user] = set()
+        
+        # Ensure likes-by-user directory exists
+        self.likes_by_user_dir().mkdir(parents=True, exist_ok=True)
+
+        user_ref_path = self.user_likes_ref(user)
+
+        # User already exists → nothing to do
+        if user_ref_path.exists():
+            return
+
+        # Logical creation of user 
+        user_ref_path.touch()
+
+
 
 
 
