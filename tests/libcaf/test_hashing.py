@@ -2,7 +2,7 @@ from libcaf.constants import HASH_LENGTH
 from libcaf.plumbing import hash_file, hash_object
 from pytest import raises
 
-from libcaf import Blob, Commit, Tree, TreeRecord, TreeRecordType
+from libcaf import Blob, Commit, Tree, TreeRecord, TreeRecordType, Like
 
 
 def test_hash_file_non_existent_file() -> None:
@@ -114,3 +114,59 @@ def test_different_hashes_for_different_parent_commits_one_none() -> None:
 
     # Verify the hashes are different
     assert hash1 != hash2, 'Hashes for commits with different parent hashes one none should not match'
+
+def test_like_hash() -> None:
+    like = Like('commit123', 'User', 1234567890, 'prevlike123')
+    like_hash = hash_object(like)
+
+    assert like_hash is not None
+    assert len(like_hash) == HASH_LENGTH
+
+
+def test_like_hash_prev_none() -> None:
+    like = Like('commit123', 'User', 1234567890, None)
+    like_hash = hash_object(like)
+
+    assert like_hash is not None
+    assert len(like_hash) == HASH_LENGTH
+
+
+def test_same_like_objects_get_same_hash() -> None:
+    like1 = Like('commit123', 'User', 1234567890, 'prevlike123')
+    like2 = Like('commit123', 'User', 1234567890, 'prevlike123')
+
+    assert hash_object(like1) == hash_object(like2)
+
+
+def test_same_like_objects_get_same_hash_prev_none() -> None:
+    like1 = Like('commit123', 'User', 1234567890, None)
+    like2 = Like('commit123', 'User', 1234567890, None)
+
+    assert hash_object(like1) == hash_object(like2)
+
+
+def test_different_hashes_for_different_likes() -> None:
+    like1 = Like('commit123', 'User1', 1234567890, None)
+    like2 = Like('commit456', 'User2', 1234567891, 'prevlike123')
+
+    assert hash_object(like1) != hash_object(like2)
+
+
+def test_different_hashes_for_different_prev_likes() -> None:
+    like1 = Like('commit123', 'User', 1234567890, 'prevlike1')
+    like2 = Like('commit123', 'User', 1234567890, 'prevlike2')
+
+    hash1 = hash_object(like1)
+    hash2 = hash_object(like2)
+
+    assert hash1 != hash2, 'Hashes for likes with different prev_like should not match'
+
+
+def test_different_hashes_for_prev_like_and_none() -> None:
+    like1 = Like('commit123', 'User', 1234567890, 'prevlike1')
+    like2 = Like('commit123', 'User', 1234567890, None)
+
+    hash1 = hash_object(like1)
+    hash2 = hash_object(like2)
+
+    assert hash1 != hash2, 'Hashes for likes with prev_like and None should not match'
