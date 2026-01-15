@@ -591,6 +591,13 @@ class Repository:
         """Get the ref path for likes of a specific commit."""
         return self.likes_by_commit_dir() / commit_hash
 
+    def commit_exists(self, commit_hash: str) -> bool:
+        try:
+            load_commit(self.objects_dir(), HashRef(commit_hash))
+            return True
+        except Exception:
+            return False
+
 
     @requires_repo
     def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
@@ -598,11 +605,23 @@ class Repository:
             raise ValueError("User is required")
 
         # Resolve commit reference
-        resolved = self.resolve_ref(commit_ref)
-        if resolved is None:
-            raise RepositoryError("Invalid commit reference")
+        if commit_ref == "HEAD":
+            resolved = self.resolve_ref(commit_ref)
+            if resolved is None:
+                raise RepositoryError("Invalid commit reference")
 
-        commit_hash = str(resolved)
+            commit_hash = str(resolved)
+        
+        elif isinstance(commit_ref, str) and len(commit_ref) == HASH_LENGTH \
+        and all(c in HASH_CHARSET for c in commit_ref):
+            commit_hash = commit_ref
+
+        else:
+             raise RepositoryError("Invalid commit reference")
+
+        # Validate commit existence
+        if not self.commit_exists(commit_hash):
+            raise RepositoryError(f"Commit '{commit_hash}' does not exist")
 
         # Ensure likes refs directories exist
         self.likes_by_user_dir().mkdir(parents=True, exist_ok=True)
@@ -639,7 +658,6 @@ class Repository:
         write_ref(commit_ref_path, like_hash)
 
         return like_hash
-
 
     
     @requires_repo
