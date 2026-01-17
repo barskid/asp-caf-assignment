@@ -108,8 +108,6 @@ class Repository:
 
         write_ref(self.head_file(), branch_ref(default_branch))
 
-        self._users: dict[str, list[HashRef]] = {}
-
 
     def exists(self) -> bool:
         """Check if the repository exists in the working directory.
@@ -597,6 +595,28 @@ class Repository:
             return True
         except Exception:
             return False
+    
+    def resolve_commit_ref(self, commit_ref: HashRef | str) -> str:
+        """
+        Resolve a commit reference (hash or HEAD) to a commit hash string.
+        """
+        if commit_ref == "HEAD":
+            resolved = self.resolve_ref("HEAD")
+            if resolved is None:
+                raise RepositoryError("Invalid commit reference")
+            commit_hash = str(resolved)
+
+        elif isinstance(commit_ref, str) and len(commit_ref) == HASH_LENGTH \
+                and all(c in HASH_CHARSET for c in commit_ref):
+            commit_hash = commit_ref
+
+        else:
+            raise RepositoryError("Invalid commit reference")
+
+        if not self.commit_exists(commit_hash):
+            raise RepositoryError(f"Commit '{commit_hash}' does not exist")
+
+        return commit_hash
 
 
     @requires_repo
@@ -604,24 +624,7 @@ class Repository:
         if not user:
             raise ValueError("User is required")
 
-        # Resolve commit reference
-        if commit_ref == "HEAD":
-            resolved = self.resolve_ref(commit_ref)
-            if resolved is None:
-                raise RepositoryError("Invalid commit reference")
-
-            commit_hash = str(resolved)
-        
-        elif isinstance(commit_ref, str) and len(commit_ref) == HASH_LENGTH \
-        and all(c in HASH_CHARSET for c in commit_ref):
-            commit_hash = commit_ref
-
-        else:
-             raise RepositoryError("Invalid commit reference")
-
-        # Validate commit existence
-        if not self.commit_exists(commit_hash):
-            raise RepositoryError(f"Commit '{commit_hash}' does not exist")
+        commit_hash = self.resolve_commit_ref(commit_ref)
 
         # Ensure likes refs directories exist
         self.likes_by_user_dir().mkdir(parents=True, exist_ok=True)
@@ -630,10 +633,10 @@ class Repository:
         # Ensure user exists (logical creation via refs)
         self.add_user(user)
 
-        # Get previous user like 
         user_ref_path = self.user_likes_ref(user)
-        commit_ref_path = self.commit_likes_ref(commit_hash)
-        prev_like_ref = read_ref(user_ref_path) if user_ref_path.exists() else None
+
+        # Get previous user like 
+        prev_like_ref = (read_ref(user_ref_path) if user_ref_path.exists()else None)
 
         # Prevent duplicate like by walking the user's like chain
         current = self.resolve_ref(prev_like_ref) if prev_like_ref else None
@@ -655,7 +658,10 @@ class Repository:
         
         # Update refs
         write_ref(user_ref_path, like_hash)
-        write_ref(commit_ref_path, like_hash)
+
+        commit_user_ref = self.commit_likes_ref(commit_hash) / user
+        commit_user_ref.parent.mkdir(parents=True, exist_ok=True)
+        write_ref(commit_user_ref, like_hash)
 
         return like_hash
 
