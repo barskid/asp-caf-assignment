@@ -2,7 +2,7 @@ from pathlib import Path
 from shutil import rmtree
 
 from libcaf.constants import DEFAULT_BRANCH, HASH_LENGTH
-from libcaf.plumbing import hash_object, load_commit, load_tree
+from libcaf.plumbing import hash_object, load_commit, load_tree, load_like
 from libcaf.ref import RefError, SymRef
 from libcaf.repository import HashRef, Repository, RepositoryError, branch_ref
 from pytest import raises
@@ -359,3 +359,44 @@ def test_head_commit_with_symbolic_ref_returns_hash_ref(temp_repo: Repository) -
     temp_repo.update_ref('heads/main', commit_ref)
 
     assert temp_repo.head_commit() == commit_ref
+
+
+def test_create_like(temp_repo: Repository) -> None:
+    # create commit to like
+    temp_file = temp_repo.working_dir / 'test_file.txt'
+    temp_file.write_text('This is a test file for commit.')
+
+    author, message = 'John Doe', 'Initial commit'
+    commit_ref = temp_repo.commit_working_dir(author, message)
+
+    user = 'user'
+
+    like_ref = temp_repo.create_like(commit_ref, user)
+    like = load_like(temp_repo.objects_dir(), like_ref)
+
+    assert like.user == user
+    assert like.commit_hash == commit_ref
+    assert like.prev_like is None
+    assert like.timestamp is not None
+
+    # verify object exists in objects
+    like_object = temp_repo.objects_dir() / like_ref[:2] / like_ref
+    assert like_object.exists()
+
+
+
+def test_create_like_with_previous_like(temp_repo: Repository) -> None:
+    temp_file = temp_repo.working_dir / 'test_file.txt'
+    temp_file.write_text('Initial commit content')
+
+    commit_ref = temp_repo.commit_working_dir('John Doe', 'First commit')
+
+    first_like_ref = temp_repo.create_like(commit_ref, 'user1')
+    first_like = load_like(temp_repo.objects_dir(), first_like_ref)
+
+    assert first_like.prev_like is None
+
+    second_like_ref = temp_repo.create_like(commit_ref, 'user2')
+    second_like = load_like(temp_repo.objects_dir(), second_like_ref)
+
+    assert second_like.prev_like is None
