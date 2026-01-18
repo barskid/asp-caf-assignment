@@ -688,27 +688,40 @@ class Repository:
     
     
     @requires_repo
-    def likes_by_user(self, user: str) -> list[HashRef]:
-        if user not in self._users:
-            raise RepositoryError(f"User '{user}' is not registered")
+    def likes_log_by_user(self, user: str) -> Generator[Like, None, None]:
+        ref_path = self.user_likes_ref(user)
 
-        return list(self._users[user].keys())
-    
+        if not ref_path.exists():
+            return
+
+        current = read_ref(ref_path)
+
+        try:
+            while current:
+                like = load_like(self.objects_dir(), current)
+                yield like
+                current = HashRef(like.prev_like) if like.prev_like else None
+        except Exception as e:
+            raise RepositoryError("Error loading user likes") from e
+
     @requires_repo
-    def users_for_commit(self, commit_ref: HashRef | str) -> list[str]:
-        resolved = self.resolve_ref(commit_ref)
-        if resolved is None:
-            raise RepositoryError("Invalid commit reference")
+    def likes_log_by_commit(self, commit_ref: HashRef | str) -> Generator[Like, None, None]:
+        commit_hash = self.resolve_commit_ref(commit_ref)
+        commit_dir = self.commit_likes_ref(commit_hash)
 
-        commit_hash = str(resolved)
-        result: list[str] = []
+        if not commit_dir.exists() or not commit_dir.is_dir():
+            return
 
-        for user, commits in self._users.items():
-            if commit_hash in commits:
-                result.append(user)
+        try:
+            for user_ref in commit_dir.iterdir():
+                if not user_ref.is_file():
+                    continue
 
-        return result
-
+                like_hash = read_ref(user_ref)
+                like = load_like(self.objects_dir(), like_hash)
+                yield like
+        except Exception as e:
+            raise RepositoryError("Error loading commit likes") from e
 
     @requires_repo
     def add_user(self, user: str) -> None:
