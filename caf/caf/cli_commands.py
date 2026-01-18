@@ -308,6 +308,59 @@ def like(**kwargs) -> int:
         _print_error(f'Repository error: {e}')
         return -1
 
+def likes_user(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    user = kwargs.get("user")
 
+    try:
+        history = list(repo.likes_log_by_user(user))
+        if not history:
+            _print_success(f"No likes found for user '{user}'.")
+            return 0
+
+        _print_success(f"Like history for user '{user}':\n")
+
+        for like in history:
+            print(f"Commit: {like.commit_hash}")
+            like_date = datetime.fromtimestamp(like.timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            print(f"Date:   {like_date}\n")
+            print('\n' + '-' * 50 + '\n')
+
+        return 0
+
+    except RepositoryNotFoundError:
+        _print_error(f"No repository found at {repo.repo_path()}")
+        return -1
+    except RepositoryError as re:
+        _print_error(f"Repository error: {re}")
+        return -1
+
+
+def likes_commit(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    commit_hash = kwargs.get("commit")
+
+    try:
+        history = list(repo.likes_log_by_commit(commit_hash))
+        if not history:
+            _print_success(f"No likes found for commit '{commit_hash}'.")
+            return 0
+
+        _print_success(f"Like history for commit '{commit_hash}':\n")
+
+        for like in history:
+            print(f"User: {like.user}")
+            like_date = datetime.fromtimestamp(like.timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            print(f"Date: {like_date}")
+            print('\n' + '-' * 50 + '\n')
+
+        return 0
+
+    except RepositoryNotFoundError:
+        _print_error(f"No repository found at {repo.repo_path()}")
+        return -1
+    except RepositoryError as re:
+        _print_error(f"Repository error: {re}")
+        return -1
 
 
