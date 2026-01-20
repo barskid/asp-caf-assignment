@@ -665,26 +665,57 @@ class Repository:
 
         return like_hash
 
-    
     @requires_repo
     def delete_like(self, commit_ref: HashRef | str, user: str) -> None:
-        if user not in self._users:
-            raise RepositoryError(f"User '{user}' is not registered")
+        if not user:
+            raise ValueError("User is required")
 
-        resolved = self.resolve_ref(commit_ref)
-        if resolved is None:
-            raise RepositoryError("Invalid commit reference")
+        commit_hash = self.resolve_commit_ref(commit_ref)
 
-        commit_hash = str(resolved)
+        # Validate commit existence
+        if not self.commit_exists(commit_hash):
+            raise RepositoryError(f"Commit '{commit_hash}' does not exist")
+        
+        user_ref_path = self.user_likes_ref(user)
+        current = read_ref(user_ref_path) if user_ref_path.exists() else None
+        prev: HashRef | None = None
 
-        if commit_hash not in self._users[user]:
-            raise RepositoryError(
-                f"User '{user}' has no like on commit '{commit_hash}'"
-            )
 
-        self._users[user].remove(commit_hash)
+        while current:
+            like = load_like(self.objects_dir(), current)
 
-        delete_content(self.objects_dir(), like_hash)
+            if like.commit_hash == commit_hash:
+
+                # deleting head
+                if prev is None:
+                    if like.prev_like:
+                        write_ref(user_ref_path, HashRef(like.prev_like))
+                    else:
+                        user_ref_path.unlink()
+
+                # deleting from middle
+                else:
+                    prev_like = load_like(self.objects_dir(), prev)
+                    # Just rewire prev ref to skip current
+                    write_ref(user_ref_path, prev)
+
+            
+                # Remove by commit ref 
+                commit_user_ref = self.commit_likes_ref(commit_hash) / user
+                if commit_user_ref.exists():
+                    commit_user_ref.unlink()
+
+                # clean empty commit dir
+                commit_dir = self.commit_likes_ref(commit_hash)
+                if commit_dir.exists() and commit_dir.is_dir() and not any(commit_dir.iterdir()):
+                    commit_dir.rmdir()
+
+                return
+
+            prev = current
+            current = HashRef(like.prev_like) if like.prev_like else None
+
+        raise RepositoryError(f"User '{user}' has no like on commit '{commit_hash}'")
     
     
     @requires_repo

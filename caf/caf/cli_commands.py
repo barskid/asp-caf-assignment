@@ -307,6 +307,33 @@ def like(**kwargs) -> int:
     except RepositoryError as e:
         _print_error(f'Repository error: {e}')
         return -1
+    
+def delete_like(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    commit_ref = kwargs.get('commit_ref')
+    user = kwargs.get('user')
+
+    if not commit_ref:
+        _print_error('Commit reference is required.')
+        return -1
+
+    if not user:
+        _print_error('User name is required.')
+        return -1
+
+    try:
+        repo.delete_like(commit_ref, user)
+        _print_success(
+            f"Like by user '{user}' on commit '{commit_ref}' deleted."
+        )
+        return 0
+
+    except RepositoryNotFoundError:
+        _print_error(f'No repository found at {repo.repo_path()}')
+        return -1
+    except RepositoryError as e:
+        _print_error(f'Repository error: {e}')
+        return -1
 
 def likes_user(**kwargs) -> int:
     repo = _repo_from_cli_kwargs(kwargs)
@@ -362,5 +389,4 @@ def likes_commit(**kwargs) -> int:
     except RepositoryError as re:
         _print_error(f"Repository error: {re}")
         return -1
-
 
