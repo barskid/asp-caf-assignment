@@ -168,16 +168,18 @@ def cli() -> None:
             },
             'help': '❤️ Like a commit',
         },
-            'likes_user': {
-            'func': cli_commands.likes_user,
-            'args': {
-                **_repo_args,
-                'user': {
-                    'type': str,
-                    'help': '👤 User whose likes history will be shown',
-                 },
-             },
-            'help': '❤️ Show like history for a user',
+        
+        
+        'likes_user': {
+        'func': cli_commands.likes_user,
+        'args': {
+            **_repo_args,
+            'user': {
+                'type': str,
+                'help': '👤 User whose likes history will be shown',
+                },
+            },
+        'help': '❤️ Show like history for a user',
         },
 
         
