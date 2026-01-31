@@ -657,7 +657,19 @@ class Repository:
         write_ref(self.likes_pending_ref(), pending_hash)
 
         return pending_hash
-        
+    
+    def clear_likes_pending(self) -> None:
+        """
+        Clear the pending like state.
+        """
+        pending_ref = self.likes_pending_ref()
+        if pending_ref.exists():
+            pending_ref.unlink()
+
+        pending_dir = self.likes_pending_dir()
+        if pending_dir.exists() and not any(pending_dir.iterdir()):
+            pending_dir.rmdir()
+            
 
 
     @requires_repo
