@@ -644,7 +644,20 @@ class Repository:
 
         pending_hash = read_ref(pending_ref)
         return load_like(self.objects_dir(), pending_hash)
+
     
+    def write_likes_pending(self, pending: PendingLike) -> HashRef:
+        """
+        Persist a pending like operation and write its ref.
+        """
+        save_like(self.objects_dir(), pending)
+        pending_hash = HashRef(hash_object(pending))
+
+        self.likes_pending_dir().mkdir(parents=True, exist_ok=True)
+        write_ref(self.likes_pending_ref(), pending_hash)
+
+        return pending_hash
+        
 
 
     @requires_repo
