@@ -636,14 +636,15 @@ class Repository:
     
     def read_likes_pending(self) -> PendingLike | None:
         """
-        Read the pending like operation if exists.
+        Read the current pending like operation, if exists.
         """
         pending_ref = self.likes_pending_ref()
         if not pending_ref.exists():
             return None
 
         pending_hash = read_ref(pending_ref)
-        return load_like(self.objects_dir(), pending_hash) 
+        return load_like(self.objects_dir(), pending_hash)
+    
 
 
     @requires_repo
