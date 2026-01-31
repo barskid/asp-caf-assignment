@@ -593,6 +593,7 @@ class Repository:
         :return: The path to the refs by specific user directory."""
         
         return self.likes_by_user_dir() / user
+    
 
     def commit_likes_ref(self, commit_hash: str) -> Path:
         """Get the ref path for likes of a specific commit."""
@@ -604,6 +605,16 @@ class Repository:
             return True
         except Exception:
             return False
+    
+    def likes_pending_dir(self) -> Path:
+        """Get the likes pending directory."""
+        return self.likes_dir() / "pending"
+
+
+    def likes_pending_ref(self) -> Path:
+        """Get the ref that points to the current pending like."""
+        return self.likes_pending_dir() / "current"
+
     
     def resolve_commit_ref(self, commit_ref: HashRef | str) -> str:
         """
