@@ -70,10 +70,19 @@ class LogEntry:
     commit_ref: HashRef
     commit: Commit
 
+@dataclass
+class PendingLike:
+    """
+    Represents a pending like operation.
 
+    """
+    op: str                 
+    commit_hash: str
+    user: str
+    timestamp: int
+    prev_like: HashRef | None
 
     
-
 
 class Repository:
     """Represents a libcaf repository.
