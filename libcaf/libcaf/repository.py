@@ -77,11 +77,7 @@ class PendingLike:
 
     """
     op: str                 
-    commit_hash: str
-    user: str
-    timestamp: int
-    prev_like: HashRef | None
-
+    like_hash: HashRef
     
 
 class Repository:
@@ -637,6 +633,17 @@ class Repository:
             raise RepositoryError(f"Commit '{commit_hash}' does not exist")
 
         return commit_hash
+    
+    def read_likes_pending(self) -> PendingLike | None:
+        """
+        Read the pending like operation if exists.
+        """
+        pending_ref = self.likes_pending_ref()
+        if not pending_ref.exists():
+            return None
+
+        pending_hash = read_ref(pending_ref)
+        return load_like(self.objects_dir(), pending_hash) 
 
 
     @requires_repo
