@@ -654,8 +654,25 @@ class Repository:
         if dir_.exists() and not any(dir_.iterdir()):
             dir_.rmdir()
 
-            
 
+    def handle_pending_like(self) -> None:
+        like_hash = self.read_likes_pending()
+        if not like_hash:
+            return
+
+        like = load_like(self.objects_dir(), like_hash)
+
+        user_ref = self.user_likes_ref(like.user)
+        commit_user_ref = self.commit_likes_ref(like.commit_hash) / like.user
+
+        if not self.exists(user_ref):
+            self.add_like_by_user(like, like_hash)
+
+        if not self.exists(commit_user_ref):
+            self.add_like_by_commit(like, like_hash)
+
+        self.clear_likes_pending()
+            
 
     @requires_repo
     def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
