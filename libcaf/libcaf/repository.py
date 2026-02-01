@@ -70,15 +70,6 @@ class LogEntry:
     commit_ref: HashRef
     commit: Commit
 
-@dataclass
-class PendingLike:
-    """
-    Represents a pending like operation.
-
-    """
-    op: str                 
-    like_hash: HashRef
-    
 
 class Repository:
     """Represents a libcaf repository.
@@ -562,7 +553,7 @@ class Repository:
 
         :return: The path to the HEAD file."""
         return self.repo_path() / HEAD_FILE
-    
+        
 
 
     def likes_dir(self) -> Path:
@@ -634,41 +625,35 @@ class Repository:
 
         return commit_hash
     
-    def read_likes_pending(self) -> PendingLike | None:
+    def read_likes_pending(self) -> HashRef | None:
         """
         Read the current pending like operation, if exists.
         """
-        pending_ref = self.likes_pending_ref()
-        if not pending_ref.exists():
+        ref = self.likes_pending_ref()
+        if not ref.exists():
             return None
-
-        pending_hash = read_ref(pending_ref)
-        return load_like(self.objects_dir(), pending_hash)
-
+        return read_ref(ref)
     
-    def write_likes_pending(self, pending: PendingLike) -> HashRef:
+    def write_likes_pending(self, like_hash: HashRef) -> None:
         """
         Persist a pending like operation and write its ref.
         """
-        save_like(self.objects_dir(), pending)
-        pending_hash = HashRef(hash_object(pending))
-
         self.likes_pending_dir().mkdir(parents=True, exist_ok=True)
-        write_ref(self.likes_pending_ref(), pending_hash)
-
-        return pending_hash
+        write_ref(self.likes_pending_ref(), like_hash)
+    
     
     def clear_likes_pending(self) -> None:
         """
         Clear the pending like state.
         """
-        pending_ref = self.likes_pending_ref()
-        if pending_ref.exists():
-            pending_ref.unlink()
+        ref = self.likes_pending_ref()
+        if ref.exists():
+            ref.unlink()
 
-        pending_dir = self.likes_pending_dir()
-        if pending_dir.exists() and not any(pending_dir.iterdir()):
-            pending_dir.rmdir()
+        dir_ = self.likes_pending_dir()
+        if dir_.exists() and not any(dir_.iterdir()):
+            dir_.rmdir()
+
             
 
 
