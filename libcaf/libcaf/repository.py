@@ -558,9 +558,8 @@ class Repository:
 
     def likes_dir(self) -> Path:
         """Get the path to the likes refs directory.
-        
         :return: The path to the refs directory."""
-        
+            
         return self.refs_dir() / "likes"
     
     def likes_by_user_dir(self) -> Path:
@@ -625,6 +624,7 @@ class Repository:
 
         return commit_hash
     
+    
     def read_likes_pending(self) -> HashRef | None:
         """
         Read the current pending like operation, if exists.
@@ -654,6 +654,14 @@ class Repository:
         if dir_.exists() and not any(dir_.iterdir()):
             dir_.rmdir()
 
+    def like_ref_is_defined(self, p: Path) -> bool:
+        if not p.exists():
+            return False
+        try:
+            read_ref(p)
+            return True
+        except Exception:
+            return False
 
     def handle_pending_like(self) -> None:
         like_hash = self.read_likes_pending()
@@ -665,16 +673,15 @@ class Repository:
         user_ref = self.user_likes_ref(like.user)
         commit_user_ref = self.commit_likes_ref(like.commit_hash) / like.user
 
-        if not self.exists(user_ref):
-            self.add_like_by_user(like, like_hash)
+        if not self.like_ref_is_defined(user_ref):
+            self._add_like_to_user(like, like_hash)
 
-        if not self.exists(commit_user_ref):
-            self.add_like_by_commit(like, like_hash)
+        if not self.like_ref_is_defined(commit_user_ref):
+            self._add_like_to_commit(like, like_hash)
 
         self.clear_likes_pending()
-            
-
-                
+    
+    
     def _add_like_to_user(self, like: Like, like_hash: HashRef) -> None:
         user_ref = self.user_likes_ref(like.user)
         write_ref(user_ref, like_hash)
@@ -736,8 +743,14 @@ class Repository:
         else:
             self.clear_likes_pending()
 
-        return like_hash
+        
+        # write_ref(user_ref_path, like_hash)
 
+        # commit_user_ref = self.commit_likes_ref(commit_hash) / user
+        # commit_user_ref.parent.mkdir(parents=True, exist_ok=True)
+        # write_ref(commit_user_ref, like_hash)
+
+        return like_hash
 
     @requires_repo
     def delete_like(self, commit_ref: HashRef | str, user: str) -> None:
