@@ -192,3 +192,25 @@ void save_like(const std::string &root_dir, const Like &like){
     }
 
 }
+
+
+
+Like load_like(const std::string &root_dir, const std::string &like_hash) {
+    int fd = open_content_for_reading(root_dir, like_hash);
+
+    std::string commit_hash = read_length_prefixed_string(fd);
+    std::string user = read_length_prefixed_string(fd);
+   
+
+    uint64_t timestamp;
+    if (read(fd, &timestamp, sizeof(timestamp)) != sizeof(timestamp))
+        throw std::runtime_error("Failed to read timestamp");
+    
+    std::string prev_like_str = read_length_prefixed_string(fd);
+
+    flock(fd, LOCK_UN);
+    close(fd);
+
+    std::optional<std::string> prev_like = prev_like_str.empty() ? std::nullopt : std::make_optional(prev_like_str);
+    return Like(commit_hash, user, timestamp, prev_like);
+}
