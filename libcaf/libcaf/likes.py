@@ -1,6 +1,8 @@
 from pathlib import Path
 from .plumbing import load_commit
 from .ref import HashRef
+from .constants import HASH_LENGTH, HASH_CHARSET
+from .repository import RepositoryError
 
 
 def likes_dir(repo) -> Path:
@@ -34,3 +36,26 @@ def commit_exists(repo, commit_hash: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def resolve_commit_ref(repo, commit_ref: HashRef | str) -> str:
+    """
+    Resolve a commit reference (hash or HEAD) to a commit hash string.
+    """
+    if commit_ref == "HEAD":
+        resolved = repo.resolve_ref("HEAD")
+        if resolved is None:
+            raise RepositoryError("Invalid commit reference")
+        commit_hash = str(resolved)
+
+    elif isinstance(commit_ref, str) and len(commit_ref) == HASH_LENGTH \
+            and all(c in HASH_CHARSET for c in commit_ref):
+        commit_hash = commit_ref
+
+    else:
+        raise RepositoryError("Invalid commit reference")
+
+    if not commit_exists(repo, commit_hash):
+        raise RepositoryError(f"Commit '{commit_hash}' does not exist")
+
+    return commit_hash
