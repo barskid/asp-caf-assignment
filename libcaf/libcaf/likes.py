@@ -103,6 +103,42 @@ def clear_likes_pending(repo) -> None:
     if dir_.exists() and not any(dir_.iterdir()):
         dir_.rmdir()
 
+def like_ref_is_defined(path: Path) -> bool:
+    if not path.exists():
+        return False
+    try:
+        read_ref(path)
+        return True
+    except Exception:
+        return False
+
+def add_like_to_user(repo, like: Like, like_hash: HashRef) -> None:
+    user_ref = user_likes_ref(repo, like.user)
+    write_ref(user_ref, like_hash)
+
+def add_like_to_commit(repo, like: Like, like_hash: HashRef) -> None:
+    commit_user_ref = commit_likes_ref(repo, like.commit_hash) / like.user
+    commit_user_ref.parent.mkdir(parents=True, exist_ok=True)
+    write_ref(commit_user_ref, like_hash)
+
+def handle_pending_like(repo) -> None:
+    like_hash = read_likes_pending(repo)
+    if not like_hash:
+        return
+
+    like = load_like(repo.objects_dir(), like_hash)
+
+    user_ref = user_likes_ref(repo, like.user)
+    commit_user_ref = commit_likes_ref(repo, like.commit_hash) / like.user
+
+    if not like_ref_is_defined(user_ref):
+        add_like_to_user(repo, like, like_hash)
+
+    if not like_ref_is_defined(commit_user_ref):
+        add_like_to_commit(repo, like, like_hash)
+
+    clear_likes_pending(repo)
+
 
 def create_like(repo, commit_ref: HashRef | str, user: str) -> HashRef:
     if not user:
