@@ -1,9 +1,11 @@
 from pathlib import Path
-from .plumbing import load_commit
-from .ref import HashRef
-from .constants import HASH_LENGTH, HASH_CHARSET
-from .repository import RepositoryError
+from datetime import datetime
 
+from .constants import HASH_LENGTH, HASH_CHARSET
+from .ref import HashRef, read_ref, write_ref
+from .plumbing import load_commit, load_like, save_like, hash_object
+from .repository import RepositoryError
+from . import Like
 
 def likes_dir(repo) -> Path:
     """Get the path to the likes refs directory."""
@@ -69,6 +71,39 @@ def resolve_commit_ref(repo, commit_ref: HashRef | str) -> str:
 
     return commit_hash
 
+
+def read_likes_pending(self) -> HashRef | None:
+    """
+    Read the current pending like operation, if exists.
+    """
+    ref = self.likes_pending_ref()
+    if not ref.exists():
+        return None
+    return read_ref(ref)
+
+
+
+def write_likes_pending(self, like_hash: HashRef) -> None:
+    """
+    Persist a pending like operation and write its ref.
+    """
+    self.likes_pending_dir().mkdir(parents=True, exist_ok=True)
+    write_ref(self.likes_pending_ref(), like_hash)
+
+
+def clear_likes_pending(self) -> None:
+    """
+    Clear the pending like state.
+    """
+    ref = self.likes_pending_ref()
+    if ref.exists():
+        ref.unlink()
+
+    dir_ = self.likes_pending_dir()
+    if dir_.exists() and not any(dir_.iterdir()):
+        dir_.rmdir()
+
+
 @requires_repo
 def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
     if not user:
@@ -113,7 +148,6 @@ def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
     return like_hash
 
 
-@requires_repo
 def add_user(self, user: str) -> None:
     if not user:
         raise ValueError("User name is required")
