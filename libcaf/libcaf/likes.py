@@ -29,6 +29,15 @@ def commit_likes_ref(repo, commit_hash: str) -> Path:
     """Get the ref path for likes of a specific commit."""
     return likes_by_commit_dir(repo) / commit_hash
 
+def likes_pending_dir(self) -> Path:
+    """Get the likes pending directory."""
+    return self.likes_dir() / "pending"
+
+
+def likes_pending_ref(self) -> Path:
+    """Get the ref that points to the current pending like."""
+    return self.likes_pending_dir() / "current"
+
 
 def commit_exists(repo, commit_hash: str) -> bool:
     try:
