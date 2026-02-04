@@ -31,14 +31,14 @@ def commit_likes_ref(repo, commit_hash: str) -> Path:
     """Get the ref path for likes of a specific commit."""
     return likes_by_commit_dir(repo) / commit_hash
 
-def likes_pending_dir(self) -> Path:
+def likes_pending_dir(repo) -> Path:
     """Get the likes pending directory."""
-    return self.likes_dir() / "pending"
+    return likes_dir(repo) / "pending"
 
 
-def likes_pending_ref(self) -> Path:
+def likes_pending_ref(repo) -> Path:
     """Get the ref that points to the current pending like."""
-    return self.likes_pending_dir() / "current"
+    return likes_pending_dir(repo) / "current"
 
 
 def commit_exists(repo, commit_hash: str) -> bool:
@@ -72,60 +72,59 @@ def resolve_commit_ref(repo, commit_ref: HashRef | str) -> str:
     return commit_hash
 
 
-def read_likes_pending(self) -> HashRef | None:
+def read_likes_pending(repo) -> HashRef | None:
     """
     Read the current pending like operation, if exists.
     """
-    ref = self.likes_pending_ref()
+    ref = repo.likes_pending_ref()
     if not ref.exists():
         return None
     return read_ref(ref)
 
 
 
-def write_likes_pending(self, like_hash: HashRef) -> None:
+def write_likes_pending(repo, like_hash: HashRef) -> None:
     """
     Persist a pending like operation and write its ref.
     """
-    self.likes_pending_dir().mkdir(parents=True, exist_ok=True)
-    write_ref(self.likes_pending_ref(), like_hash)
+    repo.likes_pending_dir().mkdir(parents=True, exist_ok=True)
+    write_ref(repo.likes_pending_ref(), like_hash)
 
 
-def clear_likes_pending(self) -> None:
+def clear_likes_pending(repo) -> None:
     """
     Clear the pending like state.
     """
-    ref = self.likes_pending_ref()
+    ref = likes_pending_ref(repo)
     if ref.exists():
         ref.unlink()
 
-    dir_ = self.likes_pending_dir()
+    dir_ = likes_pending_dir(repo)
     if dir_.exists() and not any(dir_.iterdir()):
         dir_.rmdir()
 
 
-@requires_repo
-def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
+def create_like(repo, commit_ref: HashRef | str, user: str) -> HashRef:
     if not user:
         raise ValueError("User is required")
 
-    commit_hash = self.resolve_commit_ref(commit_ref)
+    commit_hash = resolve_commit_ref(repo, commit_ref)
 
     # Ensure likes refs directories exist
-    self.likes_by_user_dir().mkdir(parents=True, exist_ok=True)
-    self.likes_by_commit_dir().mkdir(parents=True, exist_ok=True)
+    likes_by_user_dir(repo).mkdir(parents=True, exist_ok=True)
+    likes_by_commit_dir(repo).mkdir(parents=True, exist_ok=True)
 
     # Ensure user exists (logical creation via refs)
-    self.add_user(user)
+    add_user(repo, user)
 
     # Get previous user like
-    user_ref_path = self.user_likes_ref(user)
+    user_ref_path = user_likes_ref(repo, user)
     prev_like_ref = read_ref(user_ref_path) if user_ref_path.exists() else None
 
     # Prevent duplicate like by walking the user's like chain
-    current = self.resolve_ref(prev_like_ref) if prev_like_ref else None
+    current = repo.resolve_ref(prev_like_ref) if prev_like_ref else None
     while current:
-        like_obj = load_like(self.objects_dir(), current)
+        like_obj = load_like(repo.objects_dir(), current)
         if like_obj.commit_hash == commit_hash:
             raise RepositoryError(
                 f"User '{user}' already liked commit '{commit_hash}'"
@@ -135,27 +134,27 @@ def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
     # Create Like
     timestamp = int(datetime.now().timestamp())
     like = Like(commit_hash, user, timestamp, prev_like_ref)
-    save_like(self.objects_dir(), like)
+    save_like(repo.objects_dir(), like)
     like_hash = HashRef(hash_object(like))
 
     # Update refs
     write_ref(user_ref_path, like_hash)
 
-    commit_user_ref = self.commit_likes_ref(commit_hash) / user
+    commit_user_ref = commit_likes_ref(repo, commit_hash) / user
     commit_user_ref.parent.mkdir(parents=True, exist_ok=True)
     write_ref(commit_user_ref, like_hash)
 
     return like_hash
 
 
-def add_user(self, user: str) -> None:
+def add_user(repo, user: str) -> None:
     if not user:
         raise ValueError("User name is required")
 
     # Ensure likes-by-user directory exists
-    self.likes_by_user_dir().mkdir(parents=True, exist_ok=True)
+    likes_by_user_dir(repo).mkdir(parents=True, exist_ok=True)
 
-    user_ref_path = self.user_likes_ref(user)
+    user_ref_path = user_likes_ref(repo, user)
 
     # User already exists → nothing to do
     if user_ref_path.exists():
