@@ -14,7 +14,7 @@ from .constants import (DEFAULT_BRANCH, DEFAULT_REPO_DIR, HASH_CHARSET, HASH_LEN
                         OBJECTS_SUBDIR, REFS_DIR)
 from .plumbing import hash_object, load_commit, load_tree, save_commit, save_file_content, save_tree
 from .ref import HashRef, Ref, RefError, SymRef, read_ref, write_ref
-
+from . import likes
 
 class RepositoryError(Exception):
     """Exception raised for repository-related errors."""
@@ -552,6 +552,10 @@ class Repository:
         :return: The path to the HEAD file."""
         return self.repo_path() / HEAD_FILE
     
+    @requires_repo
+    def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
+        return likes.create_like(self, commit_ref, user)
+    
 
 
 def branch_ref(branch: str) -> SymRef:
@@ -560,4 +564,5 @@ def branch_ref(branch: str) -> SymRef:
     :param branch: The name of the branch.
     :return: A SymRef object representing the branch reference."""
     return SymRef(f'{HEADS_DIR}/{branch}')
+
 
