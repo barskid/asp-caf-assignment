@@ -76,7 +76,7 @@ def read_likes_pending(repo) -> HashRef | None:
     """
     Read the current pending like operation, if exists.
     """
-    ref = repo.likes_pending_ref()
+    ref = likes_pending_ref(repo)
     if not ref.exists():
         return None
     return read_ref(ref)
@@ -87,8 +87,8 @@ def write_likes_pending(repo, like_hash: HashRef) -> None:
     """
     Persist a pending like operation and write its ref.
     """
-    repo.likes_pending_dir().mkdir(parents=True, exist_ok=True)
-    write_ref(repo.likes_pending_ref(), like_hash)
+    likes_pending_dir(repo).mkdir(parents=True, exist_ok=True)
+    write_ref(likes_pending_ref(repo), like_hash)
 
 
 def clear_likes_pending(repo) -> None:
@@ -140,9 +140,14 @@ def handle_pending_like(repo) -> None:
     clear_likes_pending(repo)
 
 
+
+
 def create_like(repo, commit_ref: HashRef | str, user: str) -> HashRef:
     if not user:
         raise ValueError("User is required")
+
+    # 1. recover from previous crash
+    handle_pending_like(repo)
 
     commit_hash = resolve_commit_ref(repo, commit_ref)
 
@@ -150,14 +155,13 @@ def create_like(repo, commit_ref: HashRef | str, user: str) -> HashRef:
     likes_by_user_dir(repo).mkdir(parents=True, exist_ok=True)
     likes_by_commit_dir(repo).mkdir(parents=True, exist_ok=True)
 
-    # Ensure user exists (logical creation via refs)
+    # Ensure user exists
     add_user(repo, user)
 
-    # Get previous user like
     user_ref_path = user_likes_ref(repo, user)
     prev_like_ref = read_ref(user_ref_path) if user_ref_path.exists() else None
 
-    # Prevent duplicate like by walking the user's like chain
+    # Prevent duplicate like
     current = repo.resolve_ref(prev_like_ref) if prev_like_ref else None
     while current:
         like_obj = load_like(repo.objects_dir(), current)
@@ -167,18 +171,24 @@ def create_like(repo, commit_ref: HashRef | str, user: str) -> HashRef:
             )
         current = HashRef(like_obj.prev_like) if like_obj.prev_like else None
 
-    # Create Like
+    # Create Like object
     timestamp = int(datetime.now().timestamp())
     like = Like(commit_hash, user, timestamp, prev_like_ref)
     save_like(repo.objects_dir(), like)
     like_hash = HashRef(hash_object(like))
 
-    # Update refs
-    write_ref(user_ref_path, like_hash)
+    # 2. mark pending BEFORE writing refs
+    write_likes_pending(repo, like_hash)
 
-    commit_user_ref = commit_likes_ref(repo, commit_hash) / user
-    commit_user_ref.parent.mkdir(parents=True, exist_ok=True)
-    write_ref(commit_user_ref, like_hash)
+    try:
+        add_like_to_user(repo, like, like_hash)
+        add_like_to_commit(repo, like, like_hash)
+    except Exception:
+        # pending stays for recovery
+        raise
+    else:
+        # 3. success → clear pending
+        clear_likes_pending(repo)
 
     return like_hash
 
