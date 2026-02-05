@@ -553,8 +553,26 @@ class Repository:
         return self.repo_path() / HEAD_FILE
     
     @requires_repo
-    def create_like(self, commit_ref: HashRef | str, user: str) -> HashRef:
-        return likes.create_like(self, commit_ref, user)
+    def create_like(self, commit_ref: HashRef, user: str) -> HashRef:
+        commit_hash = self.resolve_ref(commit_ref)
+        if commit_hash is None:
+            raise RepositoryError("Invalid commit reference")
+        
+        # ensure commit exists
+        try:
+            load_commit(self.objects_dir(), commit_hash)
+        except Exception as e:
+            raise RepositoryError(f"Commit '{commit_hash}' does not exist") from e
+
+
+        return likes.create_like(
+            objects_dir=self.objects_dir(),
+            likes_by_user_dir=self.refs_dir() / "likes" / "by-user",
+            likes_by_commit_dir=self.refs_dir() / "likes" / "by-commit",
+            likes_pending_dir=self.refs_dir() / "likes" / "pending",
+            commit_hash=commit_hash,
+            user=user,
+        )
     
 
 
