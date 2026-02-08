@@ -46,7 +46,7 @@ def clear_likes_pending(likes_pending_dir: Path) -> None:
     """
     ref = likes_pending_ref(likes_pending_dir)
     if ref.exists():
-        ref.unlink()
+        ref.unlink(missing_ok=True)
 
 
 def handle_pending(
