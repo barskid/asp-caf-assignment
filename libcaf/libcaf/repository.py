@@ -9,11 +9,12 @@ from functools import wraps
 from pathlib import Path
 from typing import Concatenate
 
-from . import Blob, Commit, Tree, TreeRecord, TreeRecordType
+from . import Blob, Commit, Tree, TreeRecord, TreeRecordType, Like
 from .constants import (DEFAULT_BRANCH, DEFAULT_REPO_DIR, HASH_CHARSET, HASH_LENGTH, HEADS_DIR, HEAD_FILE,
                         OBJECTS_SUBDIR, REFS_DIR, LIKES_BY_USER_DIR, LIKES_BY_COMMIT_DIR, LIKES_PENDING_DIR)
 from .plumbing import hash_object, load_commit, load_tree, save_commit, save_file_content, save_tree
 from .ref import HashRef, Ref, RefError, SymRef, read_ref, write_ref
+from .likes import LikeError
 from . import likes
 
 class RepositoryError(Exception):
@@ -564,17 +565,18 @@ class Repository:
         except Exception as e:
             raise RepositoryError(f"Commit '{commit_hash}' does not exist") from e
 
-
-        return likes.create_like(
-            objects_dir=self.objects_dir(),
-            likes_by_user_dir=self.refs_dir() / LIKES_BY_USER_DIR,
-            likes_by_commit_dir=self.refs_dir() / LIKES_BY_COMMIT_DIR,
-            likes_pending_dir=self.refs_dir() / LIKES_PENDING_DIR,
-            commit_hash=commit_hash,
-            user=user,
-        )
+        try:
+            return likes.create_like(
+                objects_dir=self.objects_dir(),
+                likes_by_user_dir=self.refs_dir() / LIKES_BY_USER_DIR,
+                likes_by_commit_dir=self.refs_dir() / LIKES_BY_COMMIT_DIR,
+                likes_pending_dir=self.refs_dir() / LIKES_PENDING_DIR,
+                commit_hash=commit_hash,
+                user=user,
+            )
     
-
+        except LikeError as e:
+            raise RepositoryError(str(e)) from e
 
 def branch_ref(branch: str) -> SymRef:
     """Create a symbolic reference for a branch name.

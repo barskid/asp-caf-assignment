@@ -3,8 +3,11 @@ from datetime import datetime
 
 from .ref import HashRef, read_ref, write_ref
 from .plumbing import load_like, save_like, hash_object
-from .repository import RepositoryError
 from . import Like
+
+class LikeError(Exception):
+    """Logical error related to likes."""
+    pass
 
 
 def user_likes_ref(likes_by_user_dir: Path, user: str) -> Path:
@@ -115,7 +118,7 @@ def create_like(*,objects_dir: Path,
     while current:
         like_obj = load_like(objects_dir, current)
         if like_obj.commit_hash == str(commit_hash):
-            raise RepositoryError(
+            raise LikeError(
                 f"User '{user}' already liked commit '{commit_hash}'"
             )
         current = HashRef(like_obj.prev_like) if like_obj.prev_like else None
