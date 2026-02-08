@@ -553,7 +553,7 @@ class Repository:
         return self.repo_path() / HEAD_FILE
     
     @requires_repo
-    def create_like(self, commit_ref: HashRef, user: str) -> HashRef:
+    def create_like(self, commit_ref: Ref | str, user: str) -> HashRef:
         commit_hash = self.resolve_ref(commit_ref)
         if commit_hash is None:
             raise RepositoryError("Invalid commit reference")
