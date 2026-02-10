@@ -577,6 +577,31 @@ class Repository:
     
         except LikeError as e:
             raise RepositoryError(str(e)) from e
+        
+        
+
+    @requires_repo
+    def delete_like(self, commit_ref: Ref | str, user: str) -> None:
+        commit_hash = self.resolve_ref(commit_ref)
+        if commit_hash is None:
+            raise RepositoryError("Invalid commit reference")
+
+        try:
+            load_commit(self.objects_dir(), commit_hash)
+        except Exception as e:
+            raise RepositoryError(f"Commit '{commit_hash}' does not exist") from e
+
+        try:
+            likes.delete_like(
+                objects_dir=self.objects_dir(),
+                likes_by_user_dir=self.refs_dir() / LIKES_BY_USER_DIR,
+                likes_by_commit_dir=self.refs_dir() / LIKES_BY_COMMIT_DIR,
+                commit_hash=commit_hash,
+                user=user,
+            )
+        except LikeError as e:
+            raise RepositoryError(str(e)) from e
+        
 
 def branch_ref(branch: str) -> SymRef:
     """Create a symbolic reference for a branch name.
