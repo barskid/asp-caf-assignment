@@ -60,3 +60,82 @@ def test_like_5_duplicate_same_user_same_commit_raises_error(temp_repo: Reposito
     with raises(RepositoryError):
         temp_repo.create_like(commit_ref, user='user')
 
+
+def test_like_delete(temp_repo: Repository) -> None:
+    commit_ref = temp_repo.commit_working_dir('author', 'message')
+
+    like_ref = temp_repo.create_like(commit_ref, user='user')
+
+    temp_repo.delete_like(commit_ref, user='user')
+
+    user_ref = (temp_repo.refs_dir() / LIKES_BY_USER_DIR / 'user')
+    commit_ref_dir = (temp_repo.refs_dir()/ LIKES_BY_COMMIT_DIR/ str(commit_ref))
+
+    assert not user_ref.exists()
+    assert not commit_ref_dir.exists()
+
+def test_like_delete_head_updates_user_head(temp_repo: Repository) -> None:
+    commit_ref_1 = temp_repo.commit_working_dir('author', 'commit 1')
+    commit_ref_2 = temp_repo.commit_working_dir('author', 'commit 2')
+
+    first_like = temp_repo.create_like(commit_ref_1, user='user')
+    second_like = temp_repo.create_like(commit_ref_2, user='user')
+
+    # delete head (second like)
+    temp_repo.delete_like(commit_ref_2, user='user')
+
+    user_head = read_ref(temp_repo.refs_dir() / LIKES_BY_USER_DIR / 'user')
+
+    assert user_head == first_like
+
+
+def test_like_delete_middle_of_chain(temp_repo: Repository) -> None:
+    commit_ref_1 = temp_repo.commit_working_dir('author', 'commit 1')
+    commit_ref_2 = temp_repo.commit_working_dir('author', 'commit 2')
+    commit_ref_3 = temp_repo.commit_working_dir('author', 'commit 3')
+
+    like1 = temp_repo.create_like(commit_ref_1, user='user')
+    like2 = temp_repo.create_like(commit_ref_2, user='user')
+    like3 = temp_repo.create_like(commit_ref_3, user='user')
+
+    # delete middle 
+    temp_repo.delete_like(commit_ref_2, user='user')
+
+    # head should still be the last like
+    user_head = read_ref(temp_repo.refs_dir() / LIKES_BY_USER_DIR / 'user')
+    assert user_head == like3
+
+    # deleted like should not exist under commit refs
+    commit_like_ref = (temp_repo.refs_dir()/ LIKES_BY_COMMIT_DIR/ str(commit_ref_2)/ 'user')
+    assert not commit_like_ref.exists()
+
+
+def test_like_delete_non_existing_like_raises_error(
+    temp_repo: Repository,) -> None:
+    commit_ref_1 = temp_repo.commit_working_dir('author', 'commit 1')
+    commit_ref_2 = temp_repo.commit_working_dir('author', 'commit 2')
+
+    temp_repo.create_like(commit_ref_1, user='user')
+
+    with raises(RepositoryError):
+        temp_repo.delete_like(commit_ref_2, user='user')
+
+def test_like_delete_removes_commit_ref(temp_repo: Repository) -> None:
+    commit_ref = temp_repo.commit_working_dir('author', 'message')
+
+    temp_repo.create_like(commit_ref, user='user')
+    temp_repo.delete_like(commit_ref, user='user')
+
+    commit_like_ref = (temp_repo.refs_dir()/ LIKES_BY_COMMIT_DIR/ str(commit_ref)/ 'user')
+
+    assert not commit_like_ref.exists()
+
+def test_like_delete_cleans_empty_commit_dir(temp_repo: Repository) -> None:
+    commit_ref = temp_repo.commit_working_dir('author', 'message')
+
+    temp_repo.create_like(commit_ref, user='user')
+    temp_repo.delete_like(commit_ref, user='user')
+
+    commit_dir = (temp_repo.refs_dir()/ LIKES_BY_COMMIT_DIR/ str(commit_ref))
+
+    assert not commit_dir.exists()
