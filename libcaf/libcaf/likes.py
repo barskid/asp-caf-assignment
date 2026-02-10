@@ -157,3 +157,48 @@ def add_user(likes_by_user_dir: Path, user: str) -> None:
     likes_by_user_dir.mkdir(parents=True, exist_ok=True)
 
     (likes_by_user_dir / user).touch(exist_ok=True)
+    
+    
+def delete_like(*,objects_dir: Path, likes_by_user_dir: Path, likes_by_commit_dir: Path, commit_hash: HashRef, user: str,) -> None:
+    if not user:
+        raise ValueError("User is required")
+
+    user_ref_path = user_likes_ref(likes_by_user_dir, user)
+    if not user_ref_path.exists():
+        raise LikeError(f"User '{user}' has no likes")
+
+    current = read_ref(user_ref_path)
+    prev: HashRef | None = None
+
+    while current:
+        like = load_like(objects_dir, current)
+
+        if like.commit_hash == str(commit_hash):
+
+            # deleting head
+            if prev is None:
+                if like.prev_like:
+                    write_ref(user_ref_path, HashRef(like.prev_like))
+                else:
+                    user_ref_path.unlink()
+
+            # deleting from middle 
+            else:
+                write_ref(user_ref_path, prev)
+
+            # remove by-commit ref
+            commit_user_ref = (likes_by_commit_dir/ str(commit_hash)/ user)
+            if commit_user_ref.exists():
+                commit_user_ref.unlink()
+
+            # clean empty commit dir
+            commit_dir = commit_user_ref.parent
+            if commit_dir.exists() and not any(commit_dir.iterdir()):
+                commit_dir.rmdir()
+
+            return
+
+        prev = current
+        current = HashRef(like.prev_like) if like.prev_like else None
+
+    raise LikeError(f"User '{user}' has no like on commit '{commit_hash}'")
