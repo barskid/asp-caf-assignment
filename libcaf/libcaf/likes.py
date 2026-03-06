@@ -159,7 +159,9 @@ def add_user(likes_by_user_dir: Path, user: str) -> None:
     (likes_by_user_dir / user).touch(exist_ok=True)
     
     
-def delete_like(*,objects_dir: Path, likes_by_user_dir: Path, likes_by_commit_dir: Path, commit_hash: HashRef, user: str,) -> None:
+
+def delete_like(*, objects_dir: Path, likes_by_user_dir: Path, likes_by_commit_dir: Path, commit_hash: HashRef, user: str, ) -> None:
+
     if not user:
         raise ValueError("User is required")
 
@@ -167,38 +169,47 @@ def delete_like(*,objects_dir: Path, likes_by_user_dir: Path, likes_by_commit_di
     if not user_ref_path.exists():
         raise LikeError(f"User '{user}' has no likes")
 
+    # Read full chain from HEAD
+    full_chain = []
     current = read_ref(user_ref_path)
-    prev: HashRef | None = None
 
     while current:
         like = load_like(objects_dir, current)
-
-        if like.commit_hash == str(commit_hash):
-
-            # deleting head
-            if prev is None:
-                if like.prev_like:
-                    write_ref(user_ref_path, HashRef(like.prev_like))
-                else:
-                    user_ref_path.unlink()
-
-            # deleting from middle 
-            else:
-                write_ref(user_ref_path, prev)
-
-            # remove by-commit ref
-            commit_user_ref = (likes_by_commit_dir/ str(commit_hash)/ user)
-            if commit_user_ref.exists():
-                commit_user_ref.unlink()
-
-            # clean empty commit dir
-            commit_dir = commit_user_ref.parent
-            if commit_dir.exists() and not any(commit_dir.iterdir()):
-                commit_dir.rmdir()
-
-            return
-
-        prev = current
+        full_chain.append(like)
         current = HashRef(like.prev_like) if like.prev_like else None
 
-    raise LikeError(f"User '{user}' has no like on commit '{commit_hash}'")
+    # Ensure like exists
+    if not any(l.commit_hash == str(commit_hash) for l in full_chain):
+        raise LikeError( f"User '{user}' has no like on commit '{commit_hash}'")
+
+    # Remove target like
+    filtered_chain = [ l for l in full_chain if l.commit_hash != str(commit_hash)]
+
+    # Rebuild chain from bottom
+    new_prev = None
+
+    for like in reversed(filtered_chain):
+        prev_hash_str = str(new_prev) if new_prev else None
+
+        new_like = Like(like.commit_hash, like.user, like.timestamp, prev_hash_str,)
+
+        save_like(objects_dir, new_like)
+        new_prev = HashRef(hash_object(new_like))
+
+    # Update user HEAD
+    if new_prev:
+        write_ref(user_ref_path, new_prev)
+    else:
+        # No likes left
+        user_ref_path.unlink()
+
+    # Remove by-commit ref
+    commit_user_ref = (likes_by_commit_dir/ str(commit_hash)/ user)
+
+    if commit_user_ref.exists():
+        commit_user_ref.unlink()
+
+    # Clean empty commit directory
+    commit_dir = commit_user_ref.parent
+    if commit_dir.exists() and not any(commit_dir.iterdir()):
+        commit_dir.rmdir()
