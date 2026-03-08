@@ -235,3 +235,39 @@ def test_likes_log_by_commit_multiple_users(temp_repo: Repository, ) -> None:
     }
 
     assert users == {"user1", "user2"}
+
+
+
+def test_likes_log_by_commit_after_delete(
+    temp_repo: Repository,
+) -> None:
+    commit_ref = temp_repo.commit_working_dir("Author", "message")
+
+    temp_repo.create_like(commit_ref, user="user1")
+    temp_repo.create_like(commit_ref, user="user2")
+
+    temp_repo.delete_like(commit_ref, user="user1")
+
+    assert [
+        _.user
+        for _ in temp_repo.likes_log_by_commit(commit_ref)
+    ] == ["user2"]
+
+
+def test_likes_log_by_commit_empty(
+    temp_repo: Repository,
+) -> None:
+    commit_ref = temp_repo.commit_working_dir("Author", "message")
+
+    assert list(temp_repo.likes_log_by_commit(commit_ref)) == []
+
+def test_likes_log_corrupted_like_raises_error(temp_repo):
+    commit = temp_repo.commit_working_dir("Author", "msg")
+    like_hash = temp_repo.create_like(commit, user="user")
+
+    objects_dir = temp_repo.objects_dir()
+    like_path = objects_dir / like_hash[:2] / like_hash
+    like_path.write_text("corrupted data")
+
+    with raises(RepositoryError):
+        list(temp_repo.likes_log_by_user("user"))
