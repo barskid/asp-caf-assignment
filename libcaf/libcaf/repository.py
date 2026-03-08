@@ -602,7 +602,16 @@ class Repository:
         except LikeError as e:
             raise RepositoryError(str(e)) from e
 
-        
+    @requires_repo
+    def likes_log_by_user(self, user: str):
+        try:
+            yield from likes.likes_log_by_user(
+                objects_dir=self.objects_dir(),
+                likes_by_user_dir=self.refs_dir() / LIKES_BY_USER_DIR,
+                user=user,
+            )
+        except LikeError as e:
+            raise RepositoryError(str(e)) from e        
 
 def branch_ref(branch: str) -> SymRef:
     """Create a symbolic reference for a branch name.
