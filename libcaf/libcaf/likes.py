@@ -235,3 +235,24 @@ def likes_log_by_user(*, objects_dir: Path, likes_by_user_dir: Path,user: str,):
     except Exception as e:
         msg = f"Error loading like {current_hash}"
         raise LikeError(msg) from e
+
+def likes_log_by_commit(*, objects_dir: Path, likes_by_commit_dir: Path,commit_hash: HashRef, ):
+ 
+    commit_dir = likes_by_commit_dir / str(commit_hash)
+
+    if not commit_dir.exists() or not commit_dir.is_dir():
+        return
+
+    try:
+        for user_ref in commit_dir.iterdir():
+
+            if not user_ref.is_file():
+                continue
+
+            like_hash = read_ref(user_ref)
+            like = load_like(objects_dir, like_hash)
+            yield like
+
+    except Exception as e:
+        msg = f"Error loading likes for commit {commit_hash}"
+        raise LikeError(msg) from e
