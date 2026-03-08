@@ -213,3 +213,25 @@ def delete_like(*, objects_dir: Path, likes_by_user_dir: Path, likes_by_commit_d
     commit_dir = commit_user_ref.parent
     if commit_dir.exists() and not any(commit_dir.iterdir()):
         commit_dir.rmdir()
+        
+
+
+def likes_log_by_user(*, objects_dir: Path, likes_by_user_dir: Path,user: str,):
+  
+    user_ref_path = user_likes_ref(likes_by_user_dir, user)
+
+    if not user_ref_path.exists():
+        return
+
+    current_hash = read_ref(user_ref_path)
+
+    try:
+        while current_hash:
+            like = load_like(objects_dir, current_hash)
+            yield like
+
+            current_hash = (HashRef(like.prev_like) if like.prev_like else None)
+
+    except Exception as e:
+        msg = f"Error loading like {current_hash}"
+        raise LikeError(msg) from e
