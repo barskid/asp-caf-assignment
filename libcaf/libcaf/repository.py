@@ -613,6 +613,22 @@ class Repository:
         except LikeError as e:
             raise RepositoryError(str(e)) from e        
 
+ 
+    @requires_repo
+    def likes_log_by_commit(self, commit_ref: Ref | str):
+        commit_hash = self.resolve_ref(commit_ref)
+        if commit_hash is None:
+            raise RepositoryError("Invalid commit reference")
+
+        try:
+            yield from likes.likes_log_by_commit(
+                objects_dir=self.objects_dir(),
+                likes_by_commit_dir=self.refs_dir() / LIKES_BY_COMMIT_DIR,
+                commit_hash=commit_hash,
+            )
+        except LikeError as e:
+            raise RepositoryError(str(e)) from e
+
 def branch_ref(branch: str) -> SymRef:
     """Create a symbolic reference for a branch name.
 

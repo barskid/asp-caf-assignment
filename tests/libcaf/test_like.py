@@ -222,3 +222,16 @@ def test_likes_log_by_user_after_delete(temp_repo: Repository) -> None:
 def test_likes_log_by_user_empty(temp_repo: Repository) -> None:
     assert list(temp_repo.likes_log_by_user("user")) == []
 
+
+def test_likes_log_by_commit_multiple_users(temp_repo: Repository, ) -> None:
+    commit_ref = temp_repo.commit_working_dir("Author", "message")
+
+    temp_repo.create_like(commit_ref, user="user1")
+    temp_repo.create_like(commit_ref, user="user2")
+
+    users = {
+        _.user
+        for _ in temp_repo.likes_log_by_commit(commit_ref)
+    }
+
+    assert users == {"user1", "user2"}
