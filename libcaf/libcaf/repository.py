@@ -601,6 +601,7 @@ class Repository:
             )
         except LikeError as e:
             raise RepositoryError(str(e)) from e
+
         
 
 def branch_ref(branch: str) -> SymRef:
@@ -609,5 +610,6 @@ def branch_ref(branch: str) -> SymRef:
     :param branch: The name of the branch.
     :return: A SymRef object representing the branch reference."""
     return SymRef(f'{HEADS_DIR}/{branch}')
+
 
 

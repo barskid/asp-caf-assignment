@@ -187,3 +187,38 @@ def test_like_delete_non_existing_like_raises_error(temp_repo: Repository,) -> N
 
     with raises(RepositoryError):
         temp_repo.delete_like(commit_ref_2, user='user')
+
+
+def test_likes_log_by_user_order(temp_repo: Repository) -> None:
+    c1 = temp_repo.commit_working_dir("Author", "First commit")
+    c2 = temp_repo.commit_working_dir("Author", "Second commit")
+
+    like1 = temp_repo.create_like(c1, user="user")
+    like2 = temp_repo.create_like(c2, user="user")
+
+    assert [
+        _.commit_hash
+        for _ in temp_repo.likes_log_by_user("user")
+    ] == [str(c2), str(c1)]
+
+
+def test_likes_log_by_user_after_delete(temp_repo: Repository) -> None:
+    c1 = temp_repo.commit_working_dir("Author", "c1")
+    c2 = temp_repo.commit_working_dir("Author", "c2")
+    c3 = temp_repo.commit_working_dir("Author", "c3")
+
+    temp_repo.create_like(c1, user="user")
+    temp_repo.create_like(c2, user="user")
+    temp_repo.create_like(c3, user="user")
+
+    temp_repo.delete_like(c2, user="user")
+
+    assert [
+        _.commit_hash
+        for _ in temp_repo.likes_log_by_user("user")
+    ] == [str(c3), str(c1)]
+
+
+def test_likes_log_by_user_empty(temp_repo: Repository) -> None:
+    assert list(temp_repo.likes_log_by_user("user")) == []
+
